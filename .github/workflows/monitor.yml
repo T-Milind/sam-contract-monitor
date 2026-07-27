@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: DIAGNOSTIC - curl sam.gov
+        run: |
+          curl -sv -m 25 "https://sam.gov/api/prod/sgs/v1/search/?random=1&index=ac&page=0&sort=-modifiedDate&size=1&mode=search&responseType=json&domain=ac&q=information%20technology&qMode=ALL" -H "User-Agent: Mozilla/5.0" -o /tmp/resp.json || echo "CURL_EXIT=$?"
+          echo "--- response head ---"
+          head -c 500 /tmp/resp.json || true
+
       - name: Run monitor
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
