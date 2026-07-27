@@ -53,10 +53,17 @@ run onward, only genuinely new/modified notices are scored.
 - **Partial-run safety**: state is only saved once, at the end of a run. If the run
   crashes partway through, some notices may get re-scored (extra Gemini calls) on the
   next run, but nothing gets silently lost or double-emailed.
-- **Gemini model names** default to `gemini-2.5-flash` for both stages, overridable via
-  `GEMINI_MODEL_STAGE1` / `GEMINI_MODEL_STAGE2` repo secrets or env vars — check
-  aistudio.google.com for whatever the current best free-tier model is when you set this
-  up, since model availability shifts over time.
+- **Gemini model names** default to `gemini-flash-latest` for both stages (an alias that
+  tracks Google's current recommended model, so it won't go stale), overridable via
+  `GEMINI_MODEL_STAGE1` / `GEMINI_MODEL_STAGE2` repo secrets or env vars. Note:
+  version-pinned free-tier models (e.g. `gemini-2.5-flash`) get cut off from new API keys
+  over time with a 404 "no longer available to new users" — the `-latest` aliases avoid
+  that. `gemini-pro-latest` hit free-tier quota limits immediately in testing; stick with
+  `gemini-flash-latest` unless you've confirmed higher quota is available.
+- **A run fails loudly (non-zero exit) if any Stage 1/2 API call errors**, even though
+  individual failures don't stop other notices from being processed. This is deliberate:
+  a systemic issue (bad model name, expired key) would otherwise cause every notice to
+  silently fail while the job still shows green. Check the Actions log if a run is red.
 
 ## Local testing
 

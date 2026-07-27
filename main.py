@@ -54,6 +54,7 @@ def run():
 
     scored_contracts = []
     skipped_amendments = 0
+    failures = 0
 
     for r in new_results:
         notice_id = r["_id"]
@@ -76,6 +77,7 @@ def run():
             score, reason = gemini.score_opportunity(title, notice_type, agency, description)
         except Exception as e:
             log(f"Stage 1 scoring failed for {notice_id!r} ({title!r}): {e}")
+            failures += 1
             continue
 
         state_mod.mark_seen(st, notice_id, modified_date)
@@ -101,6 +103,7 @@ def run():
             )
         except Exception as e:
             log(f"Stage 2 analysis failed for {notice_id!r} ({title!r}): {e}")
+            failures += 1
             continue
 
         scored_contracts.append({
@@ -127,6 +130,10 @@ def run():
 
     state_mod.save(st, run_ts)
     log("State saved.")
+
+    if failures:
+        log(f"FATAL: {failures} scoring/analysis call(s) failed this run — failing the job so it's visible.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

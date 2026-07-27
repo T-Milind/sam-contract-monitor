@@ -6,8 +6,8 @@ GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 RECIPIENT_EMAILS = [e.strip() for e in os.environ.get("RECIPIENT_EMAILS", "").split(",") if e.strip()]
 
-GEMINI_MODEL_STAGE1 = os.environ.get("GEMINI_MODEL_STAGE1", "gemini-2.5-flash")
-GEMINI_MODEL_STAGE2 = os.environ.get("GEMINI_MODEL_STAGE2", "gemini-2.5-flash")
+GEMINI_MODEL_STAGE1 = os.environ.get("GEMINI_MODEL_STAGE1", "gemini-flash-latest")
+GEMINI_MODEL_STAGE2 = os.environ.get("GEMINI_MODEL_STAGE2", "gemini-flash-latest")
 
 STAGE1_THRESHOLD = float(os.environ.get("STAGE1_THRESHOLD", "7.5"))
 SAM_QUERY = os.environ.get("SAM_QUERY", "information technology")
