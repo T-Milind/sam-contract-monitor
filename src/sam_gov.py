@@ -1,6 +1,9 @@
 """SAM.gov public search + notice-detail client. No API key required."""
+import io
 import time
 import requests
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from . import config
 
@@ -74,6 +77,55 @@ def fetch_full_description(notice_id):
         descriptions = data.get("description", [])
         return "\n\n".join(d.get("body", "") for d in descriptions if d.get("body"))
     except (requests.RequestException, ValueError):
+        return ""
+
+
+def fetch_pdf_attachment_texts(notice_id):
+    """Downloads and extracts text from this notice's PDF attachments — these
+    are often the actual SOW/PWS, much more detailed than the search
+    description. Best-effort: any failure (network, non-PDF-parseable file,
+    scanned/image-only PDF) just skips that attachment rather than raising,
+    since this is Stage 2 enrichment, not core data the run depends on."""
+    try:
+        data = _get_json_with_retry(
+            config.SAM_RESOURCES_URL.format(id=notice_id),
+            params={"excludeDeleted": "false", "withScanResult": "false"},
+        )
+    except (requests.RequestException, ValueError):
+        return []
+
+    attachment_lists = data.get("_embedded", {}).get("opportunityAttachmentList", [])
+    attachments = attachment_lists[0].get("attachments", []) if attachment_lists else []
+    pdf_attachments = [a for a in attachments if a.get("mimeType") == ".pdf"]
+    pdf_attachments = pdf_attachments[: config.MAX_ATTACHMENTS_PER_NOTICE]
+
+    texts = []
+    total_chars = 0
+    for a in pdf_attachments:
+        if total_chars >= config.MAX_ATTACHMENT_CHARS_TOTAL:
+            break
+        name = a.get("name", "attachment.pdf")
+        text = _download_and_extract_pdf(a.get("resourceId"))
+        if not text:
+            continue
+        text = text[: config.MAX_ATTACHMENT_CHARS_PER_FILE]
+        remaining = config.MAX_ATTACHMENT_CHARS_TOTAL - total_chars
+        text = text[:remaining]
+        total_chars += len(text)
+        texts.append((name, text))
+    return texts
+
+
+def _download_and_extract_pdf(resource_id):
+    if not resource_id:
+        return ""
+    try:
+        url = config.SAM_ATTACHMENT_DOWNLOAD_URL.format(resource_id=resource_id)
+        resp = requests.get(url, headers=HEADERS, params={"api_key": "null", "token": ""}, timeout=60)
+        resp.raise_for_status()
+        reader = PdfReader(io.BytesIO(resp.content))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+    except (requests.RequestException, PdfReadError, ValueError):
         return ""
 
 

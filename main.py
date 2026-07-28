@@ -89,6 +89,14 @@ def run():
         if len(description) < 200:
             description = sam_gov.fetch_full_description(notice_id) or description
 
+        attachment_texts = sam_gov.fetch_pdf_attachment_texts(notice_id)
+        if attachment_texts:
+            attachments_section = "\n\n".join(
+                f"--- Attachment: {name} ---\n{text}" for name, text in attachment_texts
+            )
+            description = f"{description}\n\n=== ATTACHED DOCUMENTS ===\n{attachments_section}"
+            log(f"Pulled {len(attachment_texts)} PDF attachment(s) for {notice_id!r}")
+
         link = sam_gov.notice_link(notice_id)
         try:
             stage2_report = llm.capture_analysis(

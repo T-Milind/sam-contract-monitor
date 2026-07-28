@@ -15,11 +15,17 @@ MAX_PAGES_PER_RUN = int(os.environ.get("MAX_PAGES_PER_RUN", "20"))
 PAGE_SIZE = int(os.environ.get("SAM_PAGE_SIZE", "25"))
 SEEN_ID_MAX_AGE_DAYS = int(os.environ.get("SEEN_ID_MAX_AGE_DAYS", "400"))
 
+MAX_ATTACHMENTS_PER_NOTICE = int(os.environ.get("MAX_ATTACHMENTS_PER_NOTICE", "5"))
+MAX_ATTACHMENT_CHARS_PER_FILE = int(os.environ.get("MAX_ATTACHMENT_CHARS_PER_FILE", "12000"))
+MAX_ATTACHMENT_CHARS_TOTAL = int(os.environ.get("MAX_ATTACHMENT_CHARS_TOTAL", "30000"))
+
 STATE_PATH = os.environ.get("STATE_PATH", "state/seen_ids.json")
 OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output")
 
 SAM_SEARCH_URL = "https://sam.gov/api/prod/sgs/v1/search/"
 SAM_DETAIL_URL = "https://sam.gov/api/prod/opps/v2/opportunities/{id}"
+SAM_RESOURCES_URL = "https://sam.gov/api/prod/opps/v3/opportunities/{id}/resources"
+SAM_ATTACHMENT_DOWNLOAD_URL = "https://sam.gov/api/prod/opps/v3/opportunities/resources/files/{resource_id}/download"
 SAM_NOTICE_VIEW_URL = "https://sam.gov/opp/{id}/view"
 
 SERVICE_CRITERIA = """IT Services, Network Engineering, Structured Cabling, Audio/Visual Installation,
@@ -86,6 +92,8 @@ For this SAM.gov opportunity, I want a detailed report using the following forma
 Always evaluate the contract from the perspective of: Ali Rashad / Northwest Property Development as the Prime Contractor; Ismail Patel as the IT/technical Subcontractor; Placeify Solutions as the staffing provider.
 
 Do not simply summarize the solicitation. Analyze whether this opportunity makes business sense for our team, estimate staffing and financials where possible, identify risks, and provide practical recommendations. If important information (such as the statement of work or pricing details) is missing from the notice, clearly state that your estimates are preliminary and explain what additional documents would improve the analysis.
+
+The text of any attached PDF documents (often the actual Statement of Work / Performance Work Statement, which is far more detailed than the notice description) is appended below the description under "ATTACHED DOCUMENTS" when available — use it as the primary source for scope of work, staffing, and budget estimates when present, since it's more authoritative than the description.
 
 --- CONTRACT OPPORTUNITY ---
 Title: {title}
