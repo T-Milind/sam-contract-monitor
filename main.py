@@ -41,7 +41,8 @@ def run():
         seen_before = set(st["seen"].keys())
         new_results = sam_gov.fetch_new_opportunities(seen_before, max_pages=BOOTSTRAP_PAGES)
         for r in new_results:
-            state_mod.mark_seen(st, r["_id"], r.get("modifiedDate", run_ts))
+            if r.get("_id"):
+                state_mod.mark_seen(st, r["_id"], r.get("modifiedDate", run_ts))
         st["bootstrapped"] = True
         state_mod.save(st, run_ts)
         log(f"Bootstrap complete: {len(new_results)} existing notices recorded as seen. "
@@ -53,11 +54,16 @@ def run():
     log(f"Found {len(new_results)} notice(s) not previously seen.")
 
     scored_contracts = []
+    pending_seen = {}
     skipped_amendments = 0
     failures = 0
 
     for r in new_results:
-        notice_id = r["_id"]
+        notice_id = r.get("_id")
+        if not notice_id:
+            log(f"Skipping malformed result with no _id: {r.get('title', 'untitled')!r}")
+            failures += 1
+            continue
         parent_id = r.get("parentNoticeId")
         modified_date = r.get("modifiedDate", run_ts)
 
@@ -80,12 +86,18 @@ def run():
             failures += 1
             continue
 
-        state_mod.mark_seen(st, notice_id, modified_date)
         log(f"Stage 1: [{score:.1f}] {title!r} — {reason}")
 
         if score < config.STAGE1_THRESHOLD:
+            state_mod.mark_seen(st, notice_id, modified_date)
             continue
 
+        # Cleared Stage 1 — don't mark seen yet. If Stage 2 or the final PDF/
+        # email delivery below fails, this notice must stay unseen so it's
+        # retried next run instead of being silently dropped forever (it's
+        # already been fully scored and analyzed at that point; marking it
+        # seen regardless of delivery outcome would mean losing that work
+        # permanently instead of just wasting one repeat Stage 1 call).
         if len(description) < 200:
             description = sam_gov.fetch_full_description(notice_id) or description
 
@@ -124,6 +136,7 @@ def run():
             "publish_date": r.get("publishDate"),
             "stage2_report": stage2_report,
         })
+        pending_seen[notice_id] = modified_date
         time.sleep(1)  # light pacing against free-tier rate limits
 
     log(f"Skipped {skipped_amendments} amendment(s) to already-seen notices.")
@@ -136,6 +149,8 @@ def run():
             log(f"PDF built at {output_path}")
             email_sender.send_report(output_path, len(scored_contracts))
             log(f"Email sent to {', '.join(config.RECIPIENT_EMAILS)}")
+            for pending_id, pending_modified in pending_seen.items():
+                state_mod.mark_seen(st, pending_id, pending_modified)
         except Exception as e:
             log(f"PDF build / email send failed: {e}")
             failures += 1
