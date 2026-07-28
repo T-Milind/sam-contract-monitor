@@ -5,7 +5,7 @@ Run flow:
   2. First-ever run: bootstrap — record current listings as seen without
      scoring them (avoids a burst of Stage 2 calls / a giant first email).
   3. Otherwise: page SAM.gov for anything not yet seen, run Stage 1 (cheap
-     Gemini score) on each, run Stage 2 (full capture analysis) on anything
+     Groq score) on each, run Stage 2 (full capture analysis) on anything
      scoring >= STAGE1_THRESHOLD, skip amendments to already-seen notices.
   4. If anything cleared Stage 2, compile a PDF and email it.
   5. Save state.
@@ -14,7 +14,7 @@ import sys
 import time
 from datetime import datetime, timezone
 
-from src import config, sam_gov, gemini, state as state_mod, pdf_report, email_sender
+from src import config, sam_gov, llm, state as state_mod, pdf_report, email_sender
 
 BOOTSTRAP_PAGES = 3
 
@@ -29,8 +29,8 @@ def _description_from_search_result(result):
 
 
 def run():
-    if not config.GEMINI_API_KEY:
-        log("FATAL: GEMINI_API_KEY is not set.")
+    if not config.GROQ_API_KEY:
+        log("FATAL: GROQ_API_KEY is not set.")
         sys.exit(1)
 
     st = state_mod.load()
@@ -74,7 +74,7 @@ def run():
             description = sam_gov.fetch_full_description(notice_id) or description
 
         try:
-            score, reason = gemini.score_opportunity(title, notice_type, agency, description)
+            score, reason = llm.score_opportunity(title, notice_type, agency, description)
         except Exception as e:
             log(f"Stage 1 scoring failed for {notice_id!r} ({title!r}): {e}")
             failures += 1
@@ -91,7 +91,7 @@ def run():
 
         link = sam_gov.notice_link(notice_id)
         try:
-            stage2_report = gemini.capture_analysis(
+            stage2_report = llm.capture_analysis(
                 title=title,
                 notice_type=notice_type,
                 solicitation_number=r.get("solicitationNumber"),

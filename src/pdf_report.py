@@ -31,7 +31,7 @@ def _esc(text):
 
 
 def _markdown_lite_to_html(text):
-    """Gemini output is markdown-ish; convert the bits reportlab's Paragraph
+    """LLM output is markdown-ish; convert the bits reportlab's Paragraph
     understands (bold, headers-as-bold) and escape the rest."""
     text = _esc(text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)

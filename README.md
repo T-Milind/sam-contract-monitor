@@ -3,7 +3,7 @@
 Runs on GitHub Actions (free, no server, no credit card). Every run:
 
 1. Pages SAM.gov's public search endpoint for anything modified since the last run.
-2. Runs a cheap Gemini pass (Stage 1) on each new/modified notice, scoring fit 0-10
+2. Runs a cheap Groq pass (Stage 1) on each new/modified notice, scoring fit 0-10
    against the business's service list.
 3. Anything scoring >= `STAGE1_THRESHOLD` (default 7.5) goes through a full 17-section
    capture-analysis prompt (Stage 2).
@@ -13,19 +13,17 @@ Runs on GitHub Actions (free, no server, no credit card). Every run:
 ## One-time setup
 
 1. Create a GitHub repo and push this folder to it.
-2. **Gemini API key**: log into [aistudio.google.com](https://aistudio.google.com) with
-   the Google account you want to use and generate a free API key. (Check whether the
-   Jio-linked "Google AI Pro" account grants higher limits there — unconfirmed, but the
-   plain free tier is plenty for a few contracts a day either way.)
+2. **Groq API key**: sign up at [console.groq.com](https://console.groq.com) (no credit
+   card required) and generate an API key. Free tier is 1,000 requests/day, far above
+   what this workload needs per run.
 3. **Gmail app password**: enable 2-Step Verification on the sending Gmail account, then
    create an [App Password](https://myaccount.google.com/apppasswords) for it. Use the
    16-character password generated there — not the account's normal login password.
 4. In the GitHub repo, go to **Settings -> Secrets and variables -> Actions** and add:
-   - `GEMINI_API_KEY`
+   - `GROQ_API_KEY`
    - `GMAIL_ADDRESS` — the sending Gmail address
    - `GMAIL_APP_PASSWORD` — the app password from step 3
-   - `RECIPIENT_EMAILS` — comma-separated list, e.g. `a@x.com,b@y.com`. Currently only
-     `t.milind2k3@gmail.com` — add the other 2-3 recipients here when you have them.
+   - `RECIPIENT_EMAILS` — comma-separated list, e.g. `a@x.com,b@y.com`.
 5. The workflow (`.github/workflows/sam-monitor.yml`) is already scheduled for
    13:00 / 16:00 / 19:00 / 22:00 UTC daily. Trigger a manual run anytime from the
    **Actions** tab -> SAM.gov IT Contract Monitor -> **Run workflow**, to test before
@@ -51,15 +49,15 @@ run onward, only genuinely new/modified notices are scored.
   older than `SEEN_ID_MAX_AGE_DAYS` (default 400) on every save, so the file doesn't grow
   unbounded.
 - **Partial-run safety**: state is only saved once, at the end of a run. If the run
-  crashes partway through, some notices may get re-scored (extra Gemini calls) on the
+  crashes partway through, some notices may get re-scored (extra Groq calls) on the
   next run, but nothing gets silently lost or double-emailed.
-- **Gemini model names** default to `gemini-flash-latest` for both stages (an alias that
-  tracks Google's current recommended model, so it won't go stale), overridable via
-  `GEMINI_MODEL_STAGE1` / `GEMINI_MODEL_STAGE2` repo secrets or env vars. Note:
-  version-pinned free-tier models (e.g. `gemini-2.5-flash`) get cut off from new API keys
-  over time with a 404 "no longer available to new users" — the `-latest` aliases avoid
-  that. `gemini-pro-latest` hit free-tier quota limits immediately in testing; stick with
-  `gemini-flash-latest` unless you've confirmed higher quota is available.
+- **Groq model names** default to `llama-3.1-8b-instant` for Stage 1 (fast/cheap, this is
+  the high-volume stage) and `llama-3.3-70b-versatile` for Stage 2 (the rare, low-volume
+  deep-analysis stage, where quality matters more), overridable via `GROQ_MODEL_STAGE1` /
+  `GROQ_MODEL_STAGE2` repo secrets or env vars. Switched from Gemini after its free tier
+  repeatedly hit daily quota during a single backlog run; Groq's free tier (1,000
+  req/day) has much more headroom for this workload. `llm.py` retries 429s with backoff
+  (up to 3 retries, 20/40/60s) before giving up on a single notice.
 - **A run fails loudly (non-zero exit) if any Stage 1/2 API call errors**, even though
   individual failures don't stop other notices from being processed. This is deliberate:
   a systemic issue (bad model name, expired key) would otherwise cause every notice to

@@ -1,13 +1,13 @@
 """Central config: env vars, tunables, and the two AI prompts."""
 import os
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 RECIPIENT_EMAILS = [e.strip() for e in os.environ.get("RECIPIENT_EMAILS", "").split(",") if e.strip()]
 
-GEMINI_MODEL_STAGE1 = os.environ.get("GEMINI_MODEL_STAGE1", "gemini-flash-latest")
-GEMINI_MODEL_STAGE2 = os.environ.get("GEMINI_MODEL_STAGE2", "gemini-flash-latest")
+GROQ_MODEL_STAGE1 = os.environ.get("GROQ_MODEL_STAGE1", "llama-3.1-8b-instant")
+GROQ_MODEL_STAGE2 = os.environ.get("GROQ_MODEL_STAGE2", "llama-3.3-70b-versatile")
 
 STAGE1_THRESHOLD = float(os.environ.get("STAGE1_THRESHOLD", "7.5"))
 SAM_QUERY = os.environ.get("SAM_QUERY", "information technology")
