@@ -9,16 +9,17 @@ RETRY_ATTEMPTS = 3
 RETRY_BACKOFF_SECONDS = 5
 
 
-def _get_with_retry(url, **kwargs):
-    """SAM.gov's backend occasionally returns 503s or hangs (transient, observed
-    in production) — retry a few times with backoff before giving up."""
+def _get_json_with_retry(url, **kwargs):
+    """SAM.gov's backend occasionally returns 503s/hangs, or a non-JSON block/
+    maintenance page with a 200 (this is an unauthenticated, unofficial
+    endpoint) — retry a few times with backoff before giving up."""
     last_error = None
     for attempt in range(RETRY_ATTEMPTS):
         try:
             resp = requests.get(url, headers=HEADERS, timeout=30, **kwargs)
             resp.raise_for_status()
-            return resp
-        except requests.RequestException as e:
+            return resp.json()
+        except (requests.RequestException, ValueError) as e:
             last_error = e
             if attempt < RETRY_ATTEMPTS - 1:
                 time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
@@ -61,8 +62,7 @@ def _search_page(page):
         "q": config.SAM_QUERY,
         "qMode": "ALL",
     }
-    resp = _get_with_retry(config.SAM_SEARCH_URL, params=params)
-    return resp.json()
+    return _get_json_with_retry(config.SAM_SEARCH_URL, params=params)
 
 
 def fetch_full_description(notice_id):
@@ -70,17 +70,16 @@ def fetch_full_description(notice_id):
     returns the full body. Falls back to empty string on any failure."""
     try:
         url = config.SAM_DETAIL_URL.format(id=notice_id)
-        resp = _get_with_retry(url)
-        data = resp.json()
+        data = _get_json_with_retry(url)
         descriptions = data.get("description", [])
         return "\n\n".join(d.get("body", "") for d in descriptions if d.get("body"))
-    except requests.RequestException:
+    except (requests.RequestException, ValueError):
         return ""
 
 
 def agency_name(result):
     hierarchy = result.get("organizationHierarchy", [])
-    return hierarchy[-1]["name"] if hierarchy else "Unknown Agency"
+    return hierarchy[-1].get("name", "Unknown Agency") if hierarchy else "Unknown Agency"
 
 
 def notice_link(notice_id):

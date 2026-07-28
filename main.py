@@ -123,10 +123,14 @@ def run():
 
     if scored_contracts:
         output_path = f"{config.OUTPUT_DIR}/sam_report_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.pdf"
-        pdf_report.build_pdf(scored_contracts, output_path)
-        log(f"PDF built at {output_path}")
-        email_sender.send_report(output_path, len(scored_contracts))
-        log(f"Email sent to {', '.join(config.RECIPIENT_EMAILS)}")
+        try:
+            pdf_report.build_pdf(scored_contracts, output_path)
+            log(f"PDF built at {output_path}")
+            email_sender.send_report(output_path, len(scored_contracts))
+            log(f"Email sent to {', '.join(config.RECIPIENT_EMAILS)}")
+        except Exception as e:
+            log(f"PDF build / email send failed: {e}")
+            failures += 1
 
     state_mod.save(st, run_ts)
     log("State saved.")

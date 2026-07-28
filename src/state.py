@@ -25,8 +25,10 @@ def save(state, run_timestamp):
     state["last_run"] = run_timestamp
     _prune(state)
     os.makedirs(os.path.dirname(config.STATE_PATH) or ".", exist_ok=True)
-    with open(config.STATE_PATH, "w", encoding="utf-8") as f:
+    tmp_path = config.STATE_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(state, f, indent=2, sort_keys=True)
+    os.replace(tmp_path, config.STATE_PATH)
 
 
 def mark_seen(state, notice_id, modified_date):
