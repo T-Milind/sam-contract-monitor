@@ -1,11 +1,14 @@
 """Thin wrapper around the Gemini REST API (generateContent)."""
 import json
 import re
+import time
 import requests
 
 from . import config
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_BACKOFF_SECONDS = 20
 
 
 def _generate(model, prompt, response_mime_type=None):
@@ -14,13 +17,19 @@ def _generate(model, prompt, response_mime_type=None):
     if response_mime_type:
         body["generationConfig"] = {"responseMimeType": response_mime_type}
 
-    resp = requests.post(
-        url,
-        params={"key": config.GEMINI_API_KEY},
-        json=body,
-        timeout=120,
-    )
-    resp.raise_for_status()
+    for attempt in range(RATE_LIMIT_RETRIES + 1):
+        resp = requests.post(
+            url,
+            params={"key": config.GEMINI_API_KEY},
+            json=body,
+            timeout=120,
+        )
+        if resp.status_code == 429 and attempt < RATE_LIMIT_RETRIES:
+            time.sleep(RATE_LIMIT_BACKOFF_SECONDS * (attempt + 1))
+            continue
+        resp.raise_for_status()
+        break
+
     data = resp.json()
     candidates = data.get("candidates", [])
     if not candidates:
